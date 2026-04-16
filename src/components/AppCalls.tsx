@@ -1,93 +1,99 @@
 import { useWallet } from '@txnlab/use-wallet-react'
 import { useSnackbar } from 'notistack'
 import { useState } from 'react'
-import { AlgoworldFactory } from '../contracts/Algoworld'
-import { OnSchemaBreak, OnUpdate } from '@algorandfoundation/algokit-utils/types/app'
-import { getAlgodConfigFromViteEnvironment, getIndexerConfigFromViteEnvironment } from '../utils/network/getAlgoClientConfigs'
+import { PassportRegistryClient } from '../contracts/PassportRegistry'
+import { getAlgodConfigFromViteEnvironment } from '../utils/network/getAlgoClientConfigs'
 import { AlgorandClient } from '@algorandfoundation/algokit-utils'
+import CryptoJS from 'crypto-js'
 
 interface AppCallsInterface {
   openModal: boolean
   setModalState: (value: boolean) => void
+  passportData: any // The JSON data generated from your scoring engine
 }
 
-const AppCalls = ({ openModal, setModalState }: AppCallsInterface) => {
+const AppCalls = ({ openModal, setModalState, passportData }: AppCallsInterface) => {
   const [loading, setLoading] = useState<boolean>(false)
-  const [contractInput, setContractInput] = useState<string>('')
   const { enqueueSnackbar } = useSnackbar()
   const { transactionSigner, activeAddress } = useWallet()
 
+  // Initialize Algorand Connection
   const algodConfig = getAlgodConfigFromViteEnvironment()
-  const indexerConfig = getIndexerConfigFromViteEnvironment()
   const algorand = AlgorandClient.fromConfig({
     algodConfig,
-    indexerConfig,
+    indexerConfig: getAlgodConfigFromViteEnvironment(), // Reusing config for LocalNet
   })
-  algorand.setDefaultSigner(transactionSigner)
 
-  const sendAppCall = async () => {
+  const registerPassportOnChain = async () => {
+    if (!activeAddress) {
+      enqueueSnackbar('Please connect your wallet first', { variant: 'warning' })
+      return
+    }
+
     setLoading(true)
 
-    // Please note, in typical production scenarios,
-    // you wouldn't want to use deploy directly from your frontend.
-    // Instead, you would deploy your contract on your backend and reference it by id.
-    // Given the simplicity of the starter contract, we are deploying it on the frontend
-    // for demonstration purposes.
-    const factory = new AlgoworldFactory({
-      defaultSender: activeAddress ?? undefined,
-      algorand,
-    })
-    const deployResult = await factory
-      .deploy({
-        onSchemaBreak: OnSchemaBreak.AppendApp,
-        onUpdate: OnUpdate.AppendApp,
+    try {
+      // 1. Generate the SHA-256 Hash of the Passport Data
+      const jsonString = JSON.stringify(passportData)
+      const hashHex = CryptoJS.SHA256(jsonString).toString(CryptoJS.enc.Hex)
+      
+      // Convert hex string to Uint8Array (which Algorand expects for 'Bytes' type)
+      const hashBytes = new Uint8Array(hashHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)))
+
+      // 2. Connect to the ALREADY DEPLOYED contract
+      // It grabs the App ID generated during your `algokit project deploy localnet`
+      const appId = BigInt(import.meta.env.VITE_ALGOD_APP_ID || 0)
+      if (appId === 0n) throw new Error("VITE_ALGOD_APP_ID is missing in .env")
+
+      const appClient = new PassportRegistryClient(
+        {
+          resolveBy: 'id',
+          id: appId,
+          sender: { addr: activeAddress, signer: transactionSigner },
+        },
+        algorand.client.algod
+      )
+
+      // 3. Call the register_passport method on the smart contract
+      const response = await appClient.send.registerPassport({
+        args: {
+          passport_id: passportData.passport_id,
+          passport_hash: hashBytes,
+        },
       })
-      .catch((e: Error) => {
-        enqueueSnackbar(`Error deploying the contract: ${e.message}`, { variant: 'error' })
-        setLoading(false)
-        return undefined
-      })
 
-    if (!deployResult) {
-      return
-    }
-
-    const { appClient } = deployResult
-
-    const response = await appClient.send.hello({ args: { name: contractInput } }).catch((e: Error) => {
-      enqueueSnackbar(`Error calling the contract: ${e.message}`, { variant: 'error' })
+      enqueueSnackbar(`Successfully registered! TxID: ${response.transaction.txID()}`, { variant: 'success' })
+      setModalState(false)
+    } catch (e: any) {
+      enqueueSnackbar(`Error registering passport: ${e.message}`, { variant: 'error' })
+    } finally {
       setLoading(false)
-      return undefined
-    })
-
-    if (!response) {
-      return
     }
-
-    enqueueSnackbar(`Response from the contract: ${response.return}`, { variant: 'success' })
-    setLoading(false)
   }
 
   return (
-    <dialog id="appcalls_modal" className={`modal ${openModal ? 'modal-open' : ''} bg-slate-200`}>
-      <form method="dialog" className="modal-box">
-        <h3 className="font-bold text-lg">Say hello to your Algorand smart contract</h3>
-        <br />
-        <input
-          type="text"
-          placeholder="Provide input to hello function"
-          className="input input-bordered w-full"
-          value={contractInput}
-          onChange={(e) => {
-            setContractInput(e.target.value)
-          }}
-        />
-        <div className="modal-action ">
-          <button className="btn" onClick={() => setModalState(!openModal)}>
-            Close
+    <dialog id="appcalls_modal" className={`modal ${openModal ? 'modal-open' : ''} bg-slate-200/50 backdrop-blur-sm`}>
+      <form method="dialog" className="modal-box bg-white shadow-xl">
+        <h3 className="font-bold text-xl text-blue-800 mb-4">Register Passport on Algorand</h3>
+        <p className="text-gray-600 text-sm mb-4">
+          This will generate a SHA-256 hash of your credit passport and store it immutably on the blockchain.
+        </p>
+        
+        {/* Preview of the Hash (Optional but looks cool for a demo) */}
+        <div className="bg-gray-100 p-3 rounded text-xs font-mono text-gray-500 overflow-hidden mb-6">
+          Ready to hash MSME ID: {passportData?.passport_id || "No ID provided"}
+        </div>
+
+        <div className="modal-action">
+          <button className="btn btn-ghost" onClick={(e) => { e.preventDefault(); setModalState(false); }}>
+            Cancel
           </button>
-          <button className={`btn`} onClick={sendAppCall}>
-            {loading ? <span className="loading loading-spinner" /> : 'Send application call'}
+          <button 
+            className="btn bg-blue-600 hover:bg-blue-700 text-white border-none" 
+            onClick={(e) => { e.preventDefault(); registerPassportOnChain(); }}
+            disabled={loading}
+          >
+            {loading ? <span className="loading loading-spinner" /> : 'Hash & Send to Blockchain'}
           </button>
         </div>
       </form>
