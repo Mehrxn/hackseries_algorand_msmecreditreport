@@ -1,0 +1,8 @@
+{
+  "monthlyIncome": [50000, 55000, 52000, 58000, 60000, 62000],
+  "monthlyExpenses": [30000, 32000, 31000, 35000, 36000, 37000],
+  "transactionCount": 180,
+  "gstFiledMonths": 6,
+  "gstTotalMonths": 6,
+  "cashBalance": 120000
+}
