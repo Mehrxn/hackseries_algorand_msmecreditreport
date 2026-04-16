@@ -9,7 +9,7 @@ import CryptoJS from 'crypto-js'
 interface AppCallsInterface {
   openModal: boolean
   setModalState: (value: boolean) => void
-  passportData: any // The JSON data generated from your scoring engine
+  passportData?: any // ✅ Fix 1: Added '?' to make it optional so Home.tsx doesn't break
 }
 
 const AppCalls = ({ openModal, setModalState, passportData }: AppCallsInterface) => {
@@ -41,24 +41,21 @@ const AppCalls = ({ openModal, setModalState, passportData }: AppCallsInterface)
       const hashBytes = new Uint8Array(hashHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)))
 
       // 2. Connect to the ALREADY DEPLOYED contract
-      // It grabs the App ID generated during your `algokit project deploy localnet`
       const appId = BigInt(import.meta.env.VITE_ALGOD_APP_ID || 0)
       if (appId === 0n) throw new Error("VITE_ALGOD_APP_ID is missing in .env")
 
-      const appClient = new PassportRegistryClient(
-        {
-          resolveBy: 'id',
-          id: appId,
-          sender: { addr: activeAddress, signer: transactionSigner },
-        },
-        algorand.client.algod
-      )
+      // ✅ Fix 2: Removed the second argument (algorand.client.algod)
+      const appClient = new PassportRegistryClient({
+        resolveBy: 'id',
+        id: appId,
+        sender: { addr: activeAddress, signer: transactionSigner },
+      })
 
       // 3. Call the register_passport method on the smart contract
       const response = await appClient.send.registerPassport({
         args: {
-          passport_id: passportData.passport_id,
-          passport_hash: hashBytes,
+          passportId: passportData.passport_id, // ✅ Fix 3: Changed to camelCase
+          passportHash: hashBytes,              // ✅ Fix 3: Changed to camelCase
         },
       })
 
@@ -79,7 +76,7 @@ const AppCalls = ({ openModal, setModalState, passportData }: AppCallsInterface)
           This will generate a SHA-256 hash of your credit passport and store it immutably on the blockchain.
         </p>
         
-        {/* Preview of the Hash (Optional but looks cool for a demo) */}
+        {/* Preview of the Hash */}
         <div className="bg-gray-100 p-3 rounded text-xs font-mono text-gray-500 overflow-hidden mb-6">
           Ready to hash MSME ID: {passportData?.passport_id || "No ID provided"}
         </div>
