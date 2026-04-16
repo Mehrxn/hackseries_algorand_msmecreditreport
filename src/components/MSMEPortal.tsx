@@ -43,7 +43,7 @@ export const MSMEPortal: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Data Ingestion */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">📁 Upload Data</h3>
               <DataIngestion onScoreCalculated={handleScoreCalculated} />
 
@@ -77,7 +77,7 @@ export const MSMEPortal: React.FC = () => {
           {/* Right: Score Display */}
           <div className="lg:col-span-2">
             {scoringResult ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <div className="bg-white rounded-xl shadow-md border border-slate-100 p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-gray-900">Your Credit Score</h3>
                   <RiskBadge score={scoringResult.score} riskLevel={scoringResult.riskLevel} />
@@ -85,7 +85,7 @@ export const MSMEPortal: React.FC = () => {
                 <ScoreGauge score={scoringResult.score} riskLevel={scoringResult.riskLevel} />
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+              <div className="bg-white rounded-xl shadow-md border border-slate-100 p-12 text-center">
                 <div className="text-6xl mb-4">📊</div>
                 <p className="text-gray-600 text-lg">Upload your financial data to get started</p>
                 <p className="text-gray-500 text-sm mt-2">
@@ -105,7 +105,7 @@ export const MSMEPortal: React.FC = () => {
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Digital Passport */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="bg-white rounded-xl shadow-md border border-slate-100 p-8">
               <h3 className="text-lg font-bold text-gray-900 mb-6">📱 Digital Passport</h3>
               <PassportPreview
                 businessName={businessInfo.name}
@@ -117,7 +117,7 @@ export const MSMEPortal: React.FC = () => {
             </div>
 
             {/* Blockchain Registration */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="bg-white rounded-xl shadow-md border border-slate-100 p-8">
               <h3 className="text-lg font-bold text-gray-900 mb-6">🔐 Register Passport</h3>
               <BlockchainRegistration
                 businessInfo={businessInfo}

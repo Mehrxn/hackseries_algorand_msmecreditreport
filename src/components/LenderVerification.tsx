@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useWallet } from '@txnlab/use-wallet-react';
 import CryptoJS from 'crypto-js';
 import { AlgorandClient } from '@algorandfoundation/algokit-utils';
-import { PassportRegistryClient } from '../contracts/PassportRegistry';
+import { PassportRegistryFactory } from '../contracts/PassportRegistry';
 import { getAlgodConfigFromViteEnvironment } from '../utils/network/getAlgoClientConfigs';
 
 export const LenderVerification: React.FC = () => {
@@ -65,22 +65,18 @@ export const LenderVerification: React.FC = () => {
       }
 
       const algodConfig = getAlgodConfigFromViteEnvironment();
-      const algorand = AlgorandClient.fromConfig({
-        algodConfig,
-        indexerConfig: algodConfig,
+      const algorand = AlgorandClient.fromConfig({ algodConfig });
+      algorand.setDefaultSigner(transactionSigner);
+
+      const factory = new PassportRegistryFactory({
+        defaultSigner: transactionSigner,
+        algorand,
       });
 
-      const appClient = new PassportRegistryClient(
-        {
-          resolveBy: 'id',
-          id: appId,
-          sender: { addr: activeAddress, signer: transactionSigner },
-        },
-        algorand.client.algod,
-      );
+      const appClient = factory.getAppClientById({ appId });
 
       const response = await appClient.send.verifyPassport({
-        args: { passport_id: passportId.trim() },
+        args: { passportId: passportId.trim() },
       });
 
       const storedHash = response.return as Uint8Array | undefined;
@@ -118,7 +114,7 @@ export const LenderVerification: React.FC = () => {
           <span>🔍</span> Lender Verification Portal
         </h2>
         <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-8">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
+          <div className="bg-white rounded-3xl shadow-md border border-slate-100 p-8">
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Passport ID</label>
@@ -154,7 +150,7 @@ export const LenderVerification: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-8 h-full">
+            <div className="bg-white rounded-3xl shadow-md border border-slate-100 p-8 h-full">
               <div className="flex items-center justify-between gap-4 mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Verification Status</h3>

@@ -3,7 +3,7 @@ import SHA256 from 'crypto-js/sha256';
 import { useWallet } from '@txnlab/use-wallet-react';
 import { AlgorandClient } from '@algorandfoundation/algokit-utils';
 import { ScoringResult } from '../utils/scoring';
-import { PassportRegistryClient } from '../contracts/PassportRegistry';
+import { PassportRegistryFactory } from '../contracts/PassportRegistry';
 
 interface BlockchainRegistrationProps {
   businessInfo: { name: string; gstin: string };
@@ -56,15 +56,24 @@ export const BlockchainRegistration: React.FC<BlockchainRegistrationProps> = ({
       // Initialize Algorand client (connect to localnet)
       const algorand = AlgorandClient.fromEnvironment();
 
-      // Get the typed app client
-      const client = new PassportRegistryClient({
-        algorand,
+      // Create factory and get typed app client
+      const factory = new PassportRegistryFactory({
         defaultSigner: transactionSigner,
+        algorand,
       });
+
+      const appIdRaw = import.meta.env.VITE_ALGOD_APP_ID;
+      const appId = appIdRaw ? BigInt(appIdRaw) : 0n;
+      if (appId === 0n) {
+        throw new Error('VITE_ALGOD_APP_ID is not configured. Please deploy the contract and set the app ID in your .env file.');
+      }
+
+      // Get the typed app client
+      const client = factory.getAppClientById({ appId });
 
       // For now, we'll need to deploy the contract first or get the app ID
       // This is a placeholder - in production you'd have the deployed app ID
-      throw new Error('Smart contract not yet deployed. Please deploy the contract first.');
+      throw new Error('Smart contract not yet deployed. Please deploy the contract first and set VITE_ALGOD_APP_ID in your .env file.');
 
       // Call register_passport method
       // const result = await client.registerPassport({
